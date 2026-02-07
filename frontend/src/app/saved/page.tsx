@@ -17,24 +17,24 @@ export default function SavedItemsPage() {
   const [items, setItems] = useState<(Item & { owner?: Profile })[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchSavedItems = async () => {
+    try {
+      const { data } = await usersAPI.getSavedItems();
+      if (data?.items) {
+        setItems(data.items);
+      }
+    } catch (error) {
+      console.error("Failed to fetch saved items:", error);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (!user) {
       router.push("/auth/login");
       return;
     }
-
-    async function fetchSavedItems() {
-      try {
-        const { data } = await usersAPI.getSavedItems();
-        if (data?.items) {
-          setItems(data.items);
-        }
-      } catch (error) {
-        console.error("Failed to fetch saved items:", error);
-      }
-      setLoading(false);
-    }
-
+    setLoading(true);
     fetchSavedItems();
   }, [user, router]);
 
@@ -63,7 +63,7 @@ export default function SavedItemsPage() {
             ))}
           </div>
         ) : items.length > 0 ? (
-          <ItemGrid items={items} />
+          <ItemGrid items={items} isSavedList onSaveToggle={fetchSavedItems} />
         ) : (
           <Card className="text-center py-16">
             <Heart className="w-16 h-16 text-text-muted mx-auto mb-4" />
