@@ -25,7 +25,7 @@ import { Button, Card, Avatar, Badge, Rating, Modal, Textarea } from "@/componen
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/contexts/LocationContext";
 import { Item, Profile, Review } from "@/types";
-import { itemsAPI, rentalsAPI, usersAPI } from "@/lib/api";
+import { itemsAPI, rentalsAPI, usersAPI, messagesAPI } from "@/lib/api";
 import toast from "react-hot-toast";
 import { format, differenceInDays, addDays } from "date-fns";
 
@@ -56,6 +56,7 @@ export default function ItemDetailPage() {
     message: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [messageOwnerLoading, setMessageOwnerLoading] = useState(false);
 
   useEffect(() => {
     async function fetchItem() {
@@ -160,10 +161,36 @@ export default function ItemDetailPage() {
       toast.success("Rental request sent!");
       setShowRentModal(false);
       setRentForm({ startDate: "", endDate: "", message: "" });
-    } catch (error) {
-      toast.error("Failed to send request");
+    } catch (error: unknown) {
+      const msg =
+        (error as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        "Failed to send request";
+      toast.error(msg);
     }
     setSubmitting(false);
+  };
+
+  const handleMessageOwner = async () => {
+    if (!user) {
+      toast.error("Please sign in to message the owner");
+      router.push("/auth/login");
+      return;
+    }
+    if (!item || user.id === item.owner_id) return;
+    setMessageOwnerLoading(true);
+    try {
+      const { data } = await messagesAPI.startConversation(
+        item.owner_id,
+        "Hi, I'm interested in your listing.",
+        item.id
+      );
+      if (data?.conversation?.id) {
+        router.push(`/messages/${data.conversation.id}`);
+      }
+    } catch (error) {
+      toast.error("Could not start conversation");
+    }
+    setMessageOwnerLoading(false);
   };
 
   const distance = item
@@ -500,8 +527,11 @@ export default function ItemDetailPage() {
                     <Button
                       fullWidth
                       variant="secondary"
-                      icon={<MessageCircle className="w-5 h-5" />}
+                      onClick={handleMessageOwner}
+                      disabled={messageOwnerLoading}
+                      loading={messageOwnerLoading}
                     >
+                      <MessageCircle className="w-5 h-5 mr-2 inline-block" />
                       Message Owner
                     </Button>
                   </div>
@@ -520,7 +550,7 @@ export default function ItemDetailPage() {
                 )}
 
                 {/* Safety note */}
-                <div className="p-4 rounded-xl bg-background-tertiary">
+                <div className="p-4 rounded-xl bg-surface-elevated">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                     <p className="text-text-muted text-sm">
@@ -544,7 +574,7 @@ export default function ItemDetailPage() {
       >
         <form onSubmit={handleRentRequest} className="space-y-6">
           {/* Item summary */}
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-background-secondary">
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-elevated">
             {item.images?.[0] && (
               <div className="relative w-20 h-20 rounded-lg overflow-hidden shrink-0">
                 <Image src={item.images[0]} alt="" fill className="object-cover" />
@@ -571,7 +601,7 @@ export default function ItemDetailPage() {
                 min={item.availability_start}
                 max={item.availability_end || undefined}
                 required
-                className="w-full px-4 py-3 rounded-xl bg-background-secondary border border-border text-text-primary"
+                className="date-input w-full px-4 py-3 rounded-xl bg-surface-elevated border border-border text-text-primary"
               />
             </div>
             <div>
@@ -585,14 +615,14 @@ export default function ItemDetailPage() {
                 min={rentForm.startDate || item.availability_start}
                 max={item.availability_end || undefined}
                 required
-                className="w-full px-4 py-3 rounded-xl bg-background-secondary border border-border text-text-primary"
+                className="date-input w-full px-4 py-3 rounded-xl bg-surface-elevated border border-border text-text-primary"
               />
             </div>
           </div>
 
           {/* Price calculation */}
           {rentForm.startDate && rentForm.endDate && (
-            <div className="p-4 rounded-xl bg-background-secondary space-y-2">
+            <div className="p-4 rounded-xl bg-surface-elevated space-y-2">
               <div className="flex justify-between text-text-secondary">
                 <span>
                   ${item.rent_price_per_day} x{" "}
@@ -602,7 +632,7 @@ export default function ItemDetailPage() {
                 <span>
                   $
                   {(differenceInDays(new Date(rentForm.endDate), new Date(rentForm.startDate)) + 1) *
-                    item.rent_price_per_day}
+                    Number(item.rent_price_per_day)}
                 </span>
               </div>
               <div className="flex justify-between text-text-secondary">
@@ -615,8 +645,8 @@ export default function ItemDetailPage() {
                 <span>
                   $
                   {(differenceInDays(new Date(rentForm.endDate), new Date(rentForm.startDate)) + 1) *
-                    item.rent_price_per_day +
-                    item.security_deposit}
+                    Number(item.rent_price_per_day) +
+                    Number(item.security_deposit)}
                 </span>
               </div>
             </div>

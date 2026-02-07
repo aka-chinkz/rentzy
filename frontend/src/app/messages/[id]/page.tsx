@@ -29,20 +29,20 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
 
   const fetchMessages = async () => {
-    if (!user) return;
-    
+    const id = params.id as string;
+    if (!user || !id) return;
+
     try {
-      const { data } = await messagesAPI.getConversation(params.id as string);
+      const { data } = await messagesAPI.getConversation(id);
 
       if (data?.conversation) {
         setConversation(data.conversation);
         setMessages(data.messages || []);
       } else {
-        toast.error("Conversation not found");
         router.push("/messages");
       }
-    } catch (error) {
-      toast.error("Conversation not found");
+    } catch {
+      // Redirect to list without showing toast so the list page isn't cluttered
       router.push("/messages");
     }
     setLoading(false);
@@ -54,9 +54,16 @@ export default function ChatPage() {
       return;
     }
 
+    const id = params.id as string;
+    if (!id) {
+      router.push("/messages");
+      setLoading(false);
+      return;
+    }
+
     fetchMessages();
 
-    // Poll for new messages every 3 seconds as a simple real-time solution
+    // Poll for new messages every 3 seconds
     const interval = setInterval(fetchMessages, 3000);
 
     return () => {
@@ -253,7 +260,7 @@ export default function ChatPage() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
-              className="w-full px-4 py-3 rounded-xl bg-background-secondary border border-border text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-glow"
+              className="w-full px-4 py-3 rounded-xl bg-surface-elevated border border-border text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-accent-primary"
             />
           </div>
           <Button type="submit" loading={sending} disabled={!newMessage.trim()}>

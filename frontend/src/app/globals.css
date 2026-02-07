@@ -23,6 +23,21 @@ html, body {
   min-height: 100vh;
 }
 
+/* Date inputs: make selected date text visible on dark background */
+.date-input,
+.date-input::-webkit-datetime-edit,
+.date-input::-webkit-datetime-edit-fields-wrapper,
+.date-input::-webkit-datetime-edit-text,
+.date-input::-webkit-datetime-edit-month-field,
+.date-input::-webkit-datetime-edit-day-field,
+.date-input::-webkit-datetime-edit-year-field {
+  color: #ffffff;
+}
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.8;
+}
+
 @layer utilities {
   .glass {
     background: rgba(18, 18, 26, 0.8);

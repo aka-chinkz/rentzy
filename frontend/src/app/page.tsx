@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Package, MapPin, Users, Shield, ArrowRight, Sparkles, Search, MessageCircle, Star, ChevronRight } from "lucide-react";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { itemsAPI } from "@/lib/api";
 import { Item } from "@/types";
@@ -43,8 +44,9 @@ export default function HomePage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-background">
-      {/* Hero Section */}
+    <MainLayout>
+      <div className="min-h-screen bg-background">
+        {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center px-4 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <motion.div
@@ -209,18 +211,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-12 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Package className="w-6 h-6 text-accent-primary" />
-            <span className="font-display font-bold text-xl">Rentzy</span>
+        {/* Footer */}
+        <footer className="border-t border-border py-12 px-4">
+          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Package className="w-6 h-6 text-accent-primary" />
+              <span className="font-display font-bold text-xl">Rentzy</span>
+            </div>
+            <p className="text-text-secondary text-sm">
+              © 2026 Rentzy. Connecting communities through sharing.
+            </p>
           </div>
-          <p className="text-text-secondary text-sm">
-            © 2026 Rentzy. Connecting communities through sharing.
-          </p>
-        </div>
-      </footer>
-    </main>
+        </footer>
+      </div>
+    </MainLayout>
   );
 }
