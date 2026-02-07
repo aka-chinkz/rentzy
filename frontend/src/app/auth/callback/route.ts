@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       if (response.ok) {
         const data = await response.json();
         return NextResponse.redirect(
-          new URL(`/browse?token=${data.access_token}&refresh=${data.refresh_token}`, requestUrl.origin)
+          new URL(`/?token=${data.access_token}&refresh=${data.refresh_token}`, requestUrl.origin)
         );
       }
     } catch (error) {
@@ -27,5 +27,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL("/browse", requestUrl.origin));
+  return NextResponse.redirect(new URL("/", requestUrl.origin));
 }
