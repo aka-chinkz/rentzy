@@ -16,7 +16,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (data: Partial<Profile>) => Promise<void>;
+  updateProfile: (data: Partial<Profile>) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -87,9 +87,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProfile = async (data: Partial<Profile>) => {
-    const { data: updated } = await usersAPI.updateProfile(data);
-    setProfile(updated.profile);
+  const updateProfile = async (data: Partial<Profile>): Promise<{ error: Error | null }> => {
+    try {
+      const { data: updated } = await usersAPI.updateProfile(data);
+      if (updated?.profile) {
+        setProfile(updated.profile);
+      }
+      return { error: null };
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        "Failed to update profile";
+      return { error: new Error(message) };
+    }
   };
 
   const refreshProfile = async () => {

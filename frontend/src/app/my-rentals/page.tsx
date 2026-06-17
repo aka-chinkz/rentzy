@@ -41,7 +41,7 @@ type RentalWithDetails = RentalRequest & {
 
 export default function MyRentalsPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [activeTab, setActiveTab] = useState<"as_renter" | "as_owner">("as_renter");
   const [rentals, setRentals] = useState<RentalWithDetails[]>([]);
@@ -68,13 +68,12 @@ export default function MyRentalsPage() {
   };
 
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       router.push("/auth/login");
       return;
     }
-
-    fetchRentals();
-  }, [user, activeTab, router]);
+    if (user) fetchRentals();
+  }, [authLoading, user, activeTab, router]);
 
   const handleUpdateStatus = async (rentalId: string, status: RentalStatus, response?: string) => {
     try {
@@ -210,7 +209,7 @@ export default function MyRentalsPage() {
                           </Badge>
                         </div>
                         <p className="text-lg font-bold text-text-primary">
-                          ${rental.total_price}
+                          ₹{rental.total_price}
                         </p>
                       </div>
 

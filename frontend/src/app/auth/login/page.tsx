@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, Package } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { AuthBrand } from "@/components/auth/AuthBrand";
+import { Button, Card, Input } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import toast from "react-hot-toast";
 
@@ -24,55 +26,63 @@ export default function LoginPage() {
       await signIn(email, password);
       toast.success("Welcome back!");
       router.push("/");
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Invalid credentials");
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        "Invalid credentials";
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-12">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -left-24 top-1/4 h-80 w-80 rounded-full bg-accent-primary/10 blur-3xl" />
+        <div className="absolute -right-24 bottom-1/4 h-80 w-80 rounded-full bg-accent-primary/5 blur-3xl" />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="relative w-full max-w-md"
       >
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <Package className="w-8 h-8 text-accent-primary" />
-            <span className="font-display font-bold text-2xl">Rentzy</span>
-          </Link>
-          <h1 className="text-2xl font-display font-bold mb-2">Welcome Back</h1>
+        <div className="mb-8 text-center">
+          <AuthBrand />
+          <h1 className="mb-2 font-display text-2xl font-bold text-text-primary">Welcome Back</h1>
           <p className="text-text-secondary">Sign in to continue</p>
         </div>
 
-        <div className="card p-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-field pl-10"
-                  placeholder="you@example.com"
-                  required
-                />
-              </div>
-            </div>
+        <Card glass className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <Input
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              icon={<Mail className="h-5 w-5" />}
+              required
+            />
 
             <div>
-              <label className="block text-sm font-medium mb-2">Password</label>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="block text-sm font-medium text-text-primary">Password</label>
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-sm text-accent-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
+                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted" />
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-field pl-10 pr-10"
+                  className="w-full rounded-lg border border-border bg-surface-elevated py-2.5 pl-10 pr-10 text-text-primary placeholder-text-muted transition-all duration-200 focus:border-accent-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/15"
                   placeholder="••••••••"
                   required
                 />
@@ -80,24 +90,25 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
             </div>
 
-            <button type="submit" disabled={loading} className="btn-primary w-full">
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
+            <Button type="submit" fullWidth loading={loading}>
+              Sign In
+            </Button>
           </form>
 
-          <p className="text-center text-text-secondary text-sm mt-6">
-            Don't have an account?{" "}
-            <Link href="/auth/signup" className="text-accent-primary hover:underline">
+          <p className="mt-6 text-center text-sm text-text-secondary">
+            Don&apos;t have an account?{" "}
+            <Link href="/auth/signup" className="font-medium text-accent-primary hover:underline">
               Sign up
             </Link>
           </p>
-        </div>
+        </Card>
       </motion.div>
     </div>
   );

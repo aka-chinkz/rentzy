@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Search, Filter, MapPin, Package, SlidersHorizontal, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, MapPin, Package, SlidersHorizontal, X, Tag } from "lucide-react";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { useLocation } from "@/contexts/LocationContext";
 import { itemsAPI } from "@/lib/api";
 import { Item, Profile, SearchFilters } from "@/types";
@@ -22,13 +23,22 @@ const categories = [
   { value: "other", label: "Other" },
 ];
 
+type SearchSuggestion =
+  | { type: "item"; id: string; title: string; image?: string; price: number }
+  | { type: "category"; value: string; label: string };
+
 export default function BrowsePage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const searchRef = useRef<HTMLDivElement>(null);
   const { location, locationName, requestLocation, calculateDistance } = useLocation();
 
   const [items, setItems] = useState<(Item & { owner?: Profile })[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [filters, setFilters] = useState<SearchFilters>({
     query: searchParams.get("q") || "",
@@ -81,37 +91,222 @@ export default function BrowsePage() {
     fetchItems();
   }, [fetchItems]);
 
+  useEffect(() => {
+    const query = filters.query.trim();
+
+    if (!query) {
+      setSuggestions([]);
+      setSuggestionsLoading(false);
+      return;
+    }
+
+    setSuggestionsLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const categoryMatches: SearchSuggestion[] = categories
+          .filter(
+            (cat) =>
+              cat.value &&
+              (cat.label.toLowerCase().includes(query.toLowerCase()) ||
+                cat.value.toLowerCase().includes(query.toLowerCase()))
+          )
+          .slice(0, 2)
+          .map((cat) => ({ type: "category", value: cat.value, label: cat.label }));
+
+        const { data } = await itemsAPI.getItems({ q: query, limit: 5 });
+        const itemMatches: SearchSuggestion[] = (data?.items || []).map(
+          (item: Item) => ({
+            type: "item",
+            id: item.id,
+            title: item.title,
+            image: item.images?.[0],
+            price: item.rent_price_per_day,
+          })
+        );
+
+        setSuggestions([...categoryMatches, ...itemMatches]);
+      } catch {
+        setSuggestions([]);
+      }
+      setSuggestionsLoading(false);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [filters.query]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSuggestionSelect = (suggestion: SearchSuggestion) => {
+    setShowSuggestions(false);
+
+    if (suggestion.type === "item") {
+      router.push(`/items/${suggestion.id}`);
+      return;
+    }
+
+    setFilters({ ...filters, category: suggestion.value, query: "" });
+  };
+
+  const query = filters.query.trim();
+  const canShowSuggestions = showSuggestions && query.length > 0;
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 glass-strong border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2">
-              <Package className="w-7 h-7 text-accent-primary" />
-              <span className="font-display font-bold text-xl hidden sm:block">Rentzy</span>
-            </Link>
+    <MainLayout>
+      <div className="min-h-screen bg-background">
+        {/* Search bar (below app navbar) */}
+        <div className="sticky top-14 z-40 glass-strong border-b border-border lg:top-14">
+          <div className="flex items-center gap-4 px-4 py-3">
+            <div ref={searchRef} className="relative max-w-2xl flex-1">
+              <div className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface-elevated px-4 py-2.5 transition-all focus-within:border-accent-primary focus-within:ring-2 focus-within:ring-accent-primary/15">
+                <Search className="h-5 w-5 shrink-0 text-text-muted" />
+                <input
+                  type="text"
+                  value={filters.query}
+                  onChange={(e) => {
+                    setFilters({ ...filters, query: e.target.value });
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setShowSuggestions(false);
+                  }}
+                  placeholder="Search for items..."
+                  className="w-full min-w-0 bg-transparent text-text-primary placeholder:text-text-muted focus:outline-none"
+                  autoComplete="off"
+                  role="combobox"
+                  aria-expanded={canShowSuggestions}
+                  aria-controls="search-suggestions"
+                />
+                {filters.query && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters({ ...filters, query: "" });
+                      setSuggestions([]);
+                      setShowSuggestions(false);
+                    }}
+                    className="shrink-0 text-text-muted transition-colors hover:text-text-primary"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
 
-            <div className="flex-1 max-w-2xl relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-              <input
-                type="text"
-                value={filters.query}
-                onChange={(e) => setFilters({ ...filters, query: e.target.value })}
-                placeholder="Search for items..."
-                className="input-field pl-10 pr-4"
-              />
+              <AnimatePresence>
+                {canShowSuggestions && (
+                  <motion.div
+                    id="search-suggestions"
+                    role="listbox"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-lg"
+                  >
+                    {suggestionsLoading ? (
+                      <div className="py-1">
+                        {[0, 1, 2].map((index) => (
+                          <div
+                            key={index}
+                            className="search-suggestion-skeleton animate-pulse"
+                            aria-hidden
+                          >
+                            <div className="skeleton-avatar" />
+                            <div className="skeleton-lines">
+                              <div className="skeleton-line-primary" />
+                              <div className="skeleton-line-secondary" />
+                            </div>
+                            <div className="skeleton-dot" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : suggestions.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-text-muted">
+                        No suggestions for &ldquo;{query}&rdquo;
+                      </div>
+                    ) : (
+                      <ul className="max-h-80 overflow-y-auto py-1">
+                        {suggestions.map((suggestion) =>
+                          suggestion.type === "category" ? (
+                            <li key={`category-${suggestion.value}`}>
+                              <button
+                                type="button"
+                                role="option"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => handleSuggestionSelect(suggestion)}
+                                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-hover"
+                              >
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface">
+                                  <Tag className="h-4 w-4 text-accent-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-text-primary">{suggestion.label}</p>
+                                  <p className="text-xs text-text-muted">Category</p>
+                                </div>
+                              </button>
+                            </li>
+                          ) : (
+                            <li key={`item-${suggestion.id}`}>
+                              <button
+                                type="button"
+                                role="option"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => handleSuggestionSelect(suggestion)}
+                                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-hover"
+                              >
+                                <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-border bg-surface">
+                                  {suggestion.image ? (
+                                    <img
+                                      src={suggestion.image}
+                                      alt=""
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center">
+                                      <Package className="h-4 w-4 text-text-muted" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-medium text-text-primary">
+                                    {suggestion.title}
+                                  </p>
+                                  <p className="text-xs text-text-muted">Listing</p>
+                                </div>
+                                <span className="shrink-0 text-sm font-semibold text-accent-primary">
+                                  ₹{suggestion.price}/day
+                                </span>
+                              </button>
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-
-            <button onClick={() => setShowFilters(!showFilters)} className="btn-ghost flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-surface-elevated"
+            >
               <SlidersHorizontal className="w-5 h-5" />
               <span className="hidden sm:inline">Filters</span>
             </button>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+        <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Filters Panel */}
         {showFilters && (
           <motion.div
@@ -148,7 +343,7 @@ export default function BrowsePage() {
                   value={filters.minPrice || ""}
                   onChange={(e) => setFilters({ ...filters, minPrice: e.target.value ? Number(e.target.value) : undefined })}
                   className="input-field"
-                  placeholder="$0"
+                  placeholder="₹0"
                 />
               </div>
 
@@ -159,7 +354,7 @@ export default function BrowsePage() {
                   value={filters.maxPrice || ""}
                   onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value ? Number(e.target.value) : undefined })}
                   className="input-field"
-                  placeholder="$500"
+                  placeholder="₹500"
                 />
               </div>
 
@@ -173,7 +368,26 @@ export default function BrowsePage() {
                   <option value="newest">Newest First</option>
                   <option value="price_low">Price: Low to High</option>
                   <option value="price_high">Price: High to Low</option>
-                  <option value="distance">Distance</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Location</label>
+                <select
+                  value={filters.sortBy === "distance" ? "nearest" : "all"}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === "nearest") {
+                      setFilters({ ...filters, sortBy: "distance" });
+                    } else {
+                      // Reset to default sorting when showing all products
+                      setFilters({ ...filters, sortBy: "newest" });
+                    }
+                  }}
+                  className="input-field"
+                >
+                  <option value="all">All products</option>
+                  <option value="nearest">Nearest to me</option>
                 </select>
               </div>
             </div>
@@ -247,7 +461,7 @@ export default function BrowsePage() {
                       </p>
                     )}
                     <p className="text-accent-primary font-bold text-xl">
-                      ${item.rent_price_per_day}<span className="text-sm text-text-secondary font-normal">/day</span>
+                      ₹{item.rent_price_per_day}<span className="text-sm text-text-secondary font-normal">/day</span>
                     </p>
                   </div>
                 </Link>
@@ -255,7 +469,8 @@ export default function BrowsePage() {
             ))}
           </div>
         )}
-      </main>
-    </div>
+        </main>
+      </div>
+    </MainLayout>
   );
 }

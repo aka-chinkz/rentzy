@@ -62,7 +62,7 @@ export function ItemCard({
     <Link href={`/items/${item.id}`}>
       <motion.div
         whileHover={{ y: -4 }}
-        className="group glass rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-glow"
+        className="group glass rounded-xl overflow-hidden transition-all duration-200"
       >
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden">
@@ -75,7 +75,7 @@ export function ItemCard({
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="w-full h-full bg-background-tertiary flex items-center justify-center">
+            <div className="w-full h-full bg-surface-elevated flex items-center justify-center">
               <span className="text-text-muted text-sm">No image</span>
             </div>
           )}
@@ -102,7 +102,7 @@ export function ItemCard({
               ${
                 isSaved
                   ? "bg-error/90 text-white"
-                  : "bg-background/80 text-text-secondary hover:text-error backdrop-blur-sm"
+                  : "bg-surface/80 text-text-secondary hover:text-error backdrop-blur-sm"
               }
             `}
           >
@@ -113,7 +113,7 @@ export function ItemCard({
           <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between">
             <div>
               <span className="text-2xl font-display font-bold text-text-primary">
-                ${item.rent_price_per_day}
+                ₹{item.rent_price_per_day}
               </span>
               <span className="text-text-secondary text-sm">/day</span>
             </div>
@@ -138,7 +138,7 @@ export function ItemCard({
                 {conditionLabels[item.condition] || item.condition}
               </Badge>
               <span className="text-text-muted text-xs">
-                ${item.security_deposit} deposit
+                ₹{item.security_deposit} deposit
               </span>
             </div>
           </div>
@@ -158,11 +158,11 @@ export function ItemCard({
                   {item.owner.full_name || "User"}
                 </span>
               </div>
-              {item.owner.rating > 0 && (
+              {item.owner.rating != null && Number(item.owner.rating) > 0 && (
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 text-warning fill-current" />
                   <span className="text-sm text-text-secondary">
-                    {item.owner.rating.toFixed(1)}
+                    {Number(item.owner.rating).toFixed(1)}
                   </span>
                 </div>
               )}

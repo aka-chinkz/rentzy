@@ -124,7 +124,7 @@ export interface Message {
   created_at: string;
 }
 
-// Review types
+// Review types (API may include flat reviewer_name, reviewer_avatar from JOIN)
 export interface Review {
   id: string;
   rental_request_id: string;
@@ -135,6 +135,8 @@ export interface Review {
   comment: string | null;
   review_type: "renter_to_owner" | "owner_to_renter";
   created_at: string;
+  reviewer_name?: string;
+  reviewer_avatar?: string | null;
 }
 
 // Notification types

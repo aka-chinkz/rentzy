@@ -12,7 +12,7 @@ import { usersAPI } from "@/lib/api";
 
 export default function SavedItemsPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [items, setItems] = useState<(Item & { owner?: Profile })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,15 +30,17 @@ export default function SavedItemsPage() {
   };
 
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       router.push("/auth/login");
       return;
     }
-    setLoading(true);
-    fetchSavedItems();
-  }, [user, router]);
+    if (user) {
+      setLoading(true);
+      fetchSavedItems();
+    }
+  }, [authLoading, user, router]);
 
-  if (!user) return null;
+  if (authLoading || !user) return null;
 
   return (
     <MainLayout>

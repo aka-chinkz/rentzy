@@ -68,6 +68,20 @@ CREATE INDEX IF NOT EXISTS idx_items_category ON items(category_id);
 CREATE INDEX IF NOT EXISTS idx_items_available ON items(is_available);
 
 -- ==========================================
+-- ITEM VIEWS TABLE (per-user unique views)
+-- ==========================================
+CREATE TABLE IF NOT EXISTS item_views (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  item_id UUID NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(item_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_item_views_item ON item_views(item_id);
+CREATE INDEX IF NOT EXISTS idx_item_views_user ON item_views(user_id);
+
+-- ==========================================
 -- SAVED ITEMS TABLE
 -- ==========================================
 CREATE TABLE IF NOT EXISTS saved_items (
@@ -171,6 +185,21 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);
+
+-- ==========================================
+-- PASSWORD RESET TOKENS
+-- ==========================================
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user ON password_reset_tokens(user_id);
 
 -- ==========================================
 -- SUCCESS MESSAGE

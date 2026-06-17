@@ -17,7 +17,7 @@ import toast from "react-hot-toast";
 export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [conversation, setConversation] = useState<
@@ -49,7 +49,7 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       router.push("/auth/login");
       return;
     }
@@ -105,7 +105,7 @@ export default function ChatPage() {
     return format(date, "MMM d, h:mm a");
   };
 
-  if (!user) return null;
+  if (authLoading || !user) return null;
 
   return (
     <MainLayout>
@@ -171,7 +171,7 @@ export default function ChatPage() {
                 {conversation.item.title}
               </p>
               <p className="text-sm text-text-secondary">
-                ${conversation.item.rent_price_per_day}/day
+                ₹{conversation.item.rent_price_per_day}/day
               </p>
             </div>
           </Link>

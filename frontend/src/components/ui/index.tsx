@@ -23,20 +23,20 @@ export function Button({
   ...props
 }: ButtonProps) {
   const baseStyles =
-    "inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
+    "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 ease-out disabled:opacity-50 disabled:cursor-not-allowed";
 
   const variants = {
-    primary: "bg-accent-primary text-white hover:bg-accent-primary/90 shadow-lg shadow-accent-primary/25",
-    secondary: "bg-dark-tertiary text-white hover:bg-dark-tertiary/80",
-    outline: "border border-dark-border text-white hover:bg-dark-tertiary",
-    ghost: "text-dark-muted hover:text-white hover:bg-dark-tertiary",
-    danger: "bg-red-500 text-white hover:bg-red-600",
+    primary: "bg-accent-primary text-white hover:bg-accent-primary/90",
+    secondary: "bg-surface-elevated text-text-primary border border-border hover:bg-surface-hover",
+    outline: "border border-border text-text-primary hover:bg-surface-elevated",
+    ghost: "text-text-muted hover:text-text-primary hover:bg-surface-elevated/50",
+    danger: "bg-error text-white hover:bg-error/90",
   };
 
   const sizes = {
     sm: "px-3 py-1.5 text-sm",
-    md: "px-4 py-2.5 text-sm",
-    lg: "px-6 py-3 text-base",
+    md: "px-4 py-2 text-sm",
+    lg: "px-5 py-2.5 text-base",
   };
 
   return (
@@ -51,36 +51,72 @@ export function Button({
   );
 }
 
-// Rating Component
+// Rating Component (display-only or interactive for reviews)
 interface RatingProps {
   value: number;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
   showValue?: boolean;
   totalReviews?: number;
+  /** When true, stars are clickable and call onChange with 1–5 */
+  interactive?: boolean;
+  onChange?: (value: number) => void;
 }
 
-export function Rating({ value, size = "md", showValue, totalReviews }: RatingProps) {
+export function Rating({
+  value,
+  size = "md",
+  showValue,
+  totalReviews,
+  interactive,
+  onChange,
+}: RatingProps) {
   const stars = 5;
-  const iconSize = size === "sm" ? "h-4 w-4" : "h-5 w-5";
+  const iconSize =
+    size === "sm" ? "h-4 w-4" : size === "lg" ? "h-8 w-8" : "h-5 w-5";
+  const [hover, setHover] = React.useState<number | null>(null);
+  const displayValue = hover != null ? hover + 1 : value;
 
-  return (
+  const content = (
     <div className="flex items-center gap-1">
-      {Array.from({ length: stars }, (_, i) => (
-        <Star
-          key={i}
-          className={`${iconSize} ${
-            i < Math.floor(value) ? "fill-warning text-warning" : "text-border"
-          }`}
-        />
-      ))}
+      {Array.from({ length: stars }, (_, i) => {
+        const filled = i < Math.floor(displayValue);
+        const starEl = (
+          <Star
+            key={i}
+            className={`${iconSize} transition-colors ${
+              filled ? "fill-warning text-warning" : "text-border"
+            } ${interactive ? "cursor-pointer hover:scale-110" : ""}`}
+          />
+        );
+        if (interactive && onChange) {
+          return (
+            <button
+              key={i}
+              type="button"
+              className="p-0.5 focus:outline-none focus:ring-0"
+              onClick={() => onChange(i + 1)}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              aria-label={`Rate ${i + 1} stars`}
+            >
+              {starEl}
+            </button>
+          );
+        }
+        return starEl;
+      })}
       {showValue && (
-        <span className="ml-2 text-sm font-medium text-text-primary">{value.toFixed(1)}</span>
+        <span className="ml-2 text-sm font-medium text-text-primary">
+          {value.toFixed(1)}
+        </span>
       )}
       {totalReviews != null && (
         <span className="ml-1 text-sm text-text-muted">({totalReviews})</span>
       )}
     </div>
   );
+
+  return content;
 }
 
 // Modal Component
@@ -121,12 +157,12 @@ export function Modal({ isOpen, onClose, title, size = "md", children }: ModalPr
       aria-labelledby={title ? "modal-title" : undefined}
     >
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className={`relative w-full ${sizeClasses[size]} rounded-2xl border border-border bg-surface-elevated p-6 shadow-xl`}
+        className={`relative w-full ${sizeClasses[size]} rounded-xl border border-border bg-surface-elevated p-6`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
@@ -157,7 +193,7 @@ export function Input({
   return (
     <div className="w-full">
       {label && (
-        <label className="mb-2 block text-sm font-medium text-text-muted">
+        <label className="mb-2 block text-sm font-medium text-text-primary">
           {label}
         </label>
       )}
@@ -168,9 +204,9 @@ export function Input({
           </div>
         )}
         <input
-          className={`w-full rounded-xl border border-border bg-surface-elevated px-4 py-2.5 text-text-primary placeholder-text-muted transition-all focus:border-accent-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/20 ${
+          className={`w-full rounded-lg border border-border bg-surface-elevated px-4 py-2.5 text-text-primary placeholder-text-muted transition-all duration-200 focus:border-accent-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/15 ${
             icon ? "pl-10" : ""
-          } ${error ? "border-red-500" : ""} ${className}`}
+          } ${error ? "border-error" : ""} ${className}`}
           {...props}
         />
       </div>
@@ -195,13 +231,13 @@ export function Textarea({
   return (
     <div className="w-full">
       {label && (
-        <label className="mb-2 block text-sm font-medium text-text-muted">
+        <label className="mb-2 block text-sm font-medium text-text-primary">
           {label}
         </label>
       )}
       <textarea
-        className={`w-full rounded-xl border border-border bg-surface-elevated px-4 py-2.5 text-text-primary placeholder-text-muted transition-all focus:border-accent-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/20 ${
-          error ? "border-red-500" : ""
+        className={`w-full rounded-lg border border-border bg-surface-elevated px-4 py-2.5 text-text-primary placeholder-text-muted transition-all duration-200 focus:border-accent-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/15 ${
+          error ? "border-error" : ""
         } ${className}`}
         {...props}
       />
@@ -232,8 +268,8 @@ export function Select({
         </label>
       )}
       <select
-        className={`w-full rounded-xl border border-dark-border bg-dark-tertiary px-4 py-2.5 text-white transition-all focus:border-accent-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/20 ${
-          error ? "border-red-500" : ""
+        className={`w-full rounded-lg border border-border bg-surface-elevated px-4 py-2.5 text-text-primary transition-all duration-200 focus:border-accent-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/15 ${
+          error ? "border-error" : ""
         } ${className}`}
         {...props}
       >
@@ -254,6 +290,8 @@ interface CardProps {
   className?: string;
   hover?: boolean;
   glass?: boolean;
+  variant?: "default" | "glow" | "interactive";
+  padding?: "default" | "sm";
 }
 
 export function Card({
@@ -261,18 +299,21 @@ export function Card({
   className = "",
   hover = false,
   glass = false,
+  variant = "default",
+  padding = "default",
 }: CardProps) {
+  const paddingClass = padding === "sm" ? "p-4" : "p-6";
+  const variantClass =
+    variant === "glow"
+      ? "shadow-glow-subtle"
+      : variant === "interactive"
+        ? "transition-all duration-200 hover:border-border-subtle cursor-default"
+        : "";
   return (
     <div
-      className={`rounded-2xl border border-dark-border p-6 ${
-        glass
-          ? "bg-dark-secondary/50 backdrop-blur-xl"
-          : "bg-dark-secondary"
-      } ${
-        hover
-          ? "transition-all duration-300 hover:-translate-y-1 hover:border-accent-primary/50 hover:shadow-xl hover:shadow-accent-primary/5"
-          : ""
-      } ${className}`}
+      className={`rounded-xl border border-border ${paddingClass} ${
+        glass ? "bg-surface/80 backdrop-blur-xl" : "bg-surface"
+      } ${hover ? "transition-all duration-200 hover:border-border-subtle" : ""} ${variantClass} ${className}`}
     >
       {children}
     </div>
@@ -282,26 +323,31 @@ export function Card({
 // Badge Component
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: "default" | "success" | "warning" | "error" | "info";
+  variant?: "default" | "success" | "warning" | "error" | "info" | "neutral" | "primary";
+  size?: "sm" | "md";
   className?: string;
 }
 
 export function Badge({
   children,
   variant = "default",
+  size = "md",
   className = "",
 }: BadgeProps) {
-  const variants = {
-    default: "bg-dark-tertiary text-dark-muted",
-    success: "bg-green-500/10 text-green-400",
-    warning: "bg-yellow-500/10 text-yellow-400",
-    error: "bg-red-500/10 text-red-400",
-    info: "bg-blue-500/10 text-blue-400",
+  const sizeClass = size === "sm" ? "text-[10px] px-2 py-0.5" : "text-xs px-2.5 py-0.5";
+  const variants: Record<string, string> = {
+    default: "bg-surface-elevated text-text-muted",
+    success: "bg-success/10 text-success",
+    warning: "bg-warning/10 text-warning",
+    error: "bg-error/10 text-error",
+    info: "bg-accent-primary/10 text-accent-primary",
+    neutral: "bg-surface-elevated text-text-secondary",
+    primary: "bg-accent-primary/10 text-accent-primary",
   };
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${variants[variant]} ${className}`}
+      className={`inline-flex items-center rounded-full font-medium ${sizeClass} ${variants[variant] ?? variants.default} ${className}`}
     >
       {children}
     </span>
@@ -312,7 +358,7 @@ export function Badge({
 interface AvatarProps {
   src?: string | null;
   alt?: string;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
 }
 
@@ -322,7 +368,8 @@ export function Avatar({
   size = "md",
   className = "",
 }: AvatarProps) {
-  const sizes = {
+  const sizes: Record<string, string> = {
+    xs: "h-6 w-6 text-xs",
     sm: "h-8 w-8 text-xs",
     md: "h-10 w-10 text-sm",
     lg: "h-12 w-12 text-base",
@@ -332,7 +379,7 @@ export function Avatar({
   if (!src) {
     return (
       <div
-        className={`flex items-center justify-center rounded-full bg-gradient-to-br from-accent-primary to-accent-secondary font-medium text-white ${sizes[size]} ${className}`}
+        className={`flex items-center justify-center rounded-full bg-accent-primary font-medium text-white ${sizes[size] ?? sizes.md} ${className}`}
       >
         {alt?.charAt(0).toUpperCase()}
       </div>
@@ -343,7 +390,7 @@ export function Avatar({
     <img
       src={src}
       alt={alt}
-      className={`rounded-full object-cover ${sizes[size]} ${className}`}
+      className={`rounded-full object-cover ${sizes[size] ?? sizes.md} ${className}`}
     />
   );
 }

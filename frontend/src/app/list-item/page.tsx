@@ -8,7 +8,7 @@ import {
   Upload,
   X,
   MapPin,
-  DollarSign,
+  IndianRupee,
   Calendar,
   Package,
   Info,
@@ -35,7 +35,7 @@ const categories = [
 ];
 
 const conditionOptions = [
-  { value: "new", label: "New - Never used, in original packaging" },
+  // Database currently supports: like_new, good, fair
   { value: "like_new", label: "Like New - Barely used, excellent condition" },
   { value: "good", label: "Good - Some wear, fully functional" },
   { value: "fair", label: "Fair - Visible wear, works well" },
@@ -63,6 +63,10 @@ export default function ListItemPage() {
     pickup_location_lat: location?.lat || 0,
     pickup_location_lng: location?.lng || 0,
     pickup_location_name: locationName || "",
+    area: "",
+    landmark: "",
+    city: "",
+    pincode: "",
     pickup_instructions: "",
     min_rental_days: "1",
     max_rental_days: "",
@@ -144,6 +148,18 @@ export default function ListItemPage() {
         return;
       }
 
+      if (!form.category_id) {
+        toast.error("Please select a category");
+        setLoading(false);
+        return;
+      }
+
+      if (!form.condition) {
+        toast.error("Please select the item condition");
+        setLoading(false);
+        return;
+      }
+
       // Upload images
       const imageUrls = await uploadImages();
 
@@ -153,7 +169,7 @@ export default function ListItemPage() {
         return;
       }
 
-      // Create item
+      // Create item (use structured address for pickup_location_name)
       const { data } = await itemsAPI.createItem({
         title: form.title,
         description: form.description,
@@ -166,7 +182,7 @@ export default function ListItemPage() {
         availability_end: form.availability_end || null,
         pickup_location_lat: form.pickup_location_lat,
         pickup_location_lng: form.pickup_location_lng,
-        pickup_location_name: form.pickup_location_name,
+        pickup_location_name: buildPickupLocationName(),
         pickup_instructions: form.pickup_instructions || null,
         min_rental_days: Number(form.min_rental_days),
         max_rental_days: form.max_rental_days ? Number(form.max_rental_days) : null,
@@ -174,9 +190,15 @@ export default function ListItemPage() {
 
       toast.success("Item listed successfully!");
       router.push(`/items/${data.item.id}`);
-    } catch (error) {
-      toast.error("Something went wrong");
-      console.error(error);
+    } catch (error: unknown) {
+      const msg =
+        (error as { response?: { data?: { error?: string; message?: string } } })?.response
+          ?.data?.error ||
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Something went wrong";
+
+      toast.error(msg);
+      console.error("Create item error:", error);
     }
 
     setLoading(false);
@@ -195,6 +217,13 @@ export default function ListItemPage() {
       requestLocation();
       toast("Getting your location...");
     }
+  };
+
+  const buildPickupLocationName = () => {
+    const parts = [form.area, form.landmark, form.city, form.pincode].filter(
+      Boolean
+    );
+    return parts.join(", ") || form.pickup_location_name;
   };
 
   return (
@@ -353,7 +382,7 @@ export default function ListItemPage() {
                       type="number"
                       min="1"
                       placeholder="25"
-                      icon={<DollarSign className="w-5 h-5" />}
+                      icon={<IndianRupee className="w-5 h-5" />}
                       value={form.rent_price_per_day}
                       onChange={(e) =>
                         setForm({ ...form, rent_price_per_day: e.target.value })
@@ -366,7 +395,7 @@ export default function ListItemPage() {
                       type="number"
                       min="0"
                       placeholder="100"
-                      icon={<DollarSign className="w-5 h-5" />}
+                      icon={<IndianRupee className="w-5 h-5" />}
                       value={form.security_deposit}
                       onChange={(e) =>
                         setForm({ ...form, security_deposit: e.target.value })
@@ -459,34 +488,69 @@ export default function ListItemPage() {
                 </h2>
 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-2">
-                      Location
-                    </label>
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <Input
-                          placeholder="Enter pickup location"
-                          icon={<MapPin className="w-5 h-5" />}
-                          value={form.pickup_location_name}
-                          onChange={(e) =>
-                            setForm({ ...form, pickup_location_name: e.target.value })
-                          }
-                          required
-                        />
-                      </div>
-                      <Button type="button" variant="secondary" onClick={useCurrentLocation}>
-                        Use Current
-                      </Button>
+                  {/* Row 1: Area, Landmark */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      label="Area / Locality"
+                      placeholder="e.g. Seema Puri, Saket"
+                      value={form.area}
+                      onChange={(e) =>
+                        setForm({ ...form, area: e.target.value })
+                      }
+                      required
+                    />
+                    <Input
+                      label="Landmark"
+                      placeholder="e.g. Near metro, Opposite park"
+                      value={form.landmark}
+                      onChange={(e) =>
+                        setForm({ ...form, landmark: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  {/* Row 3: City */}
+                  <Input
+                    label="City"
+                    placeholder="e.g. Delhi, Mumbai"
+                    value={form.city}
+                    onChange={(e) =>
+                      setForm({ ...form, city: e.target.value })
+                    }
+                    required
+                  />
+
+                  {/* Row 4: Pincode */}
+                  <Input
+                    label="Pincode"
+                    placeholder="e.g. 110094"
+                    value={form.pincode}
+                    onChange={(e) =>
+                      setForm({ ...form, pincode: e.target.value })
+                    }
+                    required
+                  />
+
+                  <div className="flex gap-3 items-end">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-text-secondary mb-2">
+                        Set map location (optional)
+                      </label>
+                      <p className="text-text-muted text-xs mb-2">
+                        Use current location for distance calculation
+                      </p>
                     </div>
+                    <Button type="button" variant="secondary" onClick={useCurrentLocation}>
+                      Use Current
+                    </Button>
                   </div>
 
                   {/* Map placeholder */}
-                  <div className="h-48 rounded-xl bg-background-tertiary flex items-center justify-center">
+                  <div className="h-48 rounded-xl bg-surface-elevated flex items-center justify-center border border-border">
                     <p className="text-text-muted text-sm">
-                      {form.pickup_location_name
-                        ? `📍 ${form.pickup_location_name}`
-                        : "Set location to see map preview"}
+                      {buildPickupLocationName() || form.pickup_location_name
+                        ? `📍 ${buildPickupLocationName() || form.pickup_location_name}`
+                        : "Fill address above or set location to see map preview"}
                     </p>
                   </div>
 
@@ -515,19 +579,19 @@ export default function ListItemPage() {
                   <div className="flex justify-between">
                     <span className="text-text-muted">Daily Rate</span>
                     <span className="text-text-primary">
-                      ${form.rent_price_per_day || 0}
+                      ₹{form.rent_price_per_day || 0}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-text-muted">Security Deposit</span>
                     <span className="text-text-primary">
-                      ${form.security_deposit || 0}
+                      ₹{form.security_deposit || 0}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-text-muted">Location</span>
                     <span className="text-text-primary">
-                      {form.pickup_location_name || "-"}
+                      {buildPickupLocationName() || form.pickup_location_name || "-"}
                     </span>
                   </div>
                   <div className="flex justify-between">

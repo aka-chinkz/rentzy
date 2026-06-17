@@ -11,6 +11,15 @@ const router = Router();
 // Get all items with filters
 router.get("/", optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
+    // Release items whose rental end_date has passed (so they show as available again)
+    await pool.query(
+      `UPDATE items SET is_available = true, updated_at = NOW()
+       WHERE id IN (
+         SELECT item_id FROM rental_requests
+         WHERE status IN ('approved', 'rented') AND end_date < CURRENT_DATE
+       )`
+    );
+
     const {
       q,
       category,
@@ -157,17 +166,39 @@ router.get("/:id", optionalAuthMiddleware, async (req: AuthRequest, res, next) =
   }
 });
 
-// Increment views
-router.post("/:id/view", async (req, res, next) => {
+// Increment views (per-user unique views when authenticated)
+router.post("/:id/view", optionalAuthMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const { id } = req.params;
 
-    await pool.query(
-      "UPDATE items SET views = views + 1 WHERE id = $1",
-      [id]
-    );
+    let alreadyViewed = false;
 
-    res.json({ success: true });
+    if (req.user) {
+      const userId = req.user.userId;
+
+      // Insert per-user view record; if it already exists, do not increment views again
+      const result = await pool.query(
+        `INSERT INTO item_views (item_id, user_id)
+         VALUES ($1, $2)
+         ON CONFLICT (item_id, user_id) DO NOTHING`,
+        [id, userId]
+      );
+
+      if (result.rowCount === 0) {
+        alreadyViewed = true;
+      }
+    }
+
+    // For authenticated users, only increment when this is their first view.
+    // For unauthenticated users, increment on every call (no per-user tracking).
+    if (!req.user || !alreadyViewed) {
+      await pool.query(
+        "UPDATE items SET views = views + 1 WHERE id = $1",
+        [id]
+      );
+    }
+
+    res.json({ success: true, alreadyViewed });
   } catch (error) {
     next(error);
   }

@@ -1,224 +1,159 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Package, MapPin, Users, Shield, ArrowRight, Sparkles, Search, MessageCircle, Star, ChevronRight } from "lucide-react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import {
+  Package,
+  MapPin,
+  Users,
+  Shield,
+  Sparkles,
+  Search,
+  MessageCircle,
+  ArrowRight,
+} from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { Hero3DHover } from "@/components/Hero3DHover";
+import { RecentlyVisited } from "@/components/items/RecentlyVisited";
+import { CategoryBento } from "@/components/items/CategoryBento";
 import { useAuth } from "@/contexts/AuthContext";
-import { itemsAPI } from "@/lib/api";
-import { Item } from "@/types";
 
 const features = [
-  { icon: MapPin, title: "Location-Based Discovery", description: "Find items available near you.", color: "from-emerald-500 to-teal-500" },
-  { icon: Shield, title: "Secure Rentals", description: "Security deposits protect both parties.", color: "from-blue-500 to-cyan-500" },
-  { icon: MessageCircle, title: "Direct Communication", description: "Chat directly with owners.", color: "from-violet-500 to-purple-500" },
-  { icon: Users, title: "Community Trust", description: "Reviews help you choose wisely.", color: "from-orange-500 to-amber-500" },
-];
-
-const categories = [
-  { id: "electronics", name: "Electronics", icon: "📱" },
-  { id: "sports", name: "Sports", icon: "⚽" },
-  { id: "tools", name: "Tools", icon: "🔧" },
-  { id: "cameras", name: "Cameras", icon: "📷" },
-  { id: "party", name: "Party", icon: "🎉" },
-  { id: "music", name: "Music", icon: "🎸" },
+  { icon: MapPin, title: "Location-Based Discovery", description: "Find items available near you." },
+  { icon: Shield, title: "Secure Rentals", description: "Security deposits protect both parties." },
+  { icon: MessageCircle, title: "Direct Communication", description: "Chat directly with owners." },
+  { icon: Users, title: "Community Trust", description: "Reviews help you choose wisely." },
 ];
 
 export default function HomePage() {
   const { user } = useAuth();
-  const [featuredItems, setFeaturedItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
+  const heroScrollRef = useRef<HTMLElement>(null);
 
-  useEffect(() => {
-    async function fetchFeaturedItems() {
-      try {
-        const { data } = await itemsAPI.getItems({ limit: 8, sortBy: "newest" });
-        if (data?.items) setFeaturedItems(data.items);
-      } catch (error) {
-        console.error("Failed to fetch items:", error);
-      }
-      setLoading(false);
-    }
-    fetchFeaturedItems();
-  }, []);
+  const { scrollYProgress: heroScrollProgress } = useScroll({
+    target: heroScrollRef,
+    offset: ["start start", "end start"],
+  });
+
+  const heroOpacity = useTransform(heroScrollProgress, [0, 0.85], [1, 0]);
+  const heroScale = useTransform(heroScrollProgress, [0, 1], [1, 0.86]);
+  const heroY = useTransform(heroScrollProgress, [0, 1], [0, 100]);
+  const heroBlur = useTransform(heroScrollProgress, [0, 0.8], [0, 10]);
+  const heroFilter = useTransform(heroBlur, (v) => `blur(${v}px)`);
+  const ctaOpacity = useTransform(heroScrollProgress, [0, 0.45, 0.75], [1, 0.5, 0]);
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-background">
-        {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center px-4 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
+      <div className="relative min-h-screen">
+        {/* Hero only — scroll transition */}
+        <section ref={heroScrollRef} className="relative -mx-4 h-[175vh] lg:-mx-8">
           <motion.div
-            animate={{ x: [0, 100, 0], y: [0, -50, 0] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent-primary/20 rounded-full blur-3xl"
-          />
-          <motion.div
-            animate={{ x: [0, -80, 0], y: [0, 60, 0] }}
-            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent-secondary/15 rounded-full blur-3xl"
-          />
-        </div>
+            className="sticky top-14 flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center overflow-hidden px-4 py-10 lg:top-16 lg:min-h-[calc(100vh-4rem)] md:py-14"
+            style={{
+              opacity: heroOpacity,
+              scale: heroScale,
+              y: heroY,
+              filter: heroFilter,
+            }}
+          >
+            <div className="relative z-10 mx-auto w-full max-w-5xl">
+              <motion.div
+                initial={{ opacity: 0, y: 28 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.75, ease: "easeOut" }}
+              >
+                <Hero3DHover
+                  title="Borrow Anything from"
+                  highlight="Your Neighbors"
+                  subtitle="Why buy when you can borrow? Discover items available for rent in your neighborhood. Save money, reduce waste, and connect with your community."
+                  scrollProgress={heroScrollProgress}
+                />
+              </motion.div>
 
-        <div className="relative z-10 max-w-5xl mx-auto text-center">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <span className="inline-flex items-center gap-2 px-4 py-2 bg-surface-elevated rounded-full border border-border text-sm text-text-secondary mb-6">
-              <Sparkles className="w-4 h-4 text-accent-primary" />
-              The future of sharing is here
-            </span>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="mt-10 flex flex-col items-center"
+                style={{ opacity: ctaOpacity }}
+              >
+                <span className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-surface-elevated px-4 py-2 text-sm text-text-secondary">
+                  <Sparkles className="h-4 w-4 text-accent-primary" />
+                  Scroll to explore — hover for 3D
+                </span>
+
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link href="/browse" className="btn-17 btn-17-primary">
+                    <span className="text-container">
+                      <span className="text">
+                        <Search className="w-5 h-5" />
+                        Browse Items
+                        <ArrowRight className="w-5 h-5" />
+                      </span>
+                    </span>
+                  </Link>
+                  {!user && (
+                    <Link href="/auth/signup" className="btn-17">
+                      <span className="text-container">
+                        <span className="text">Create Account</span>
+                      </span>
+                    </Link>
+                  )}
+                  {user && (
+                    <Link href="/list-item" className="btn-17">
+                      <span className="text-container">
+                        <span className="text">
+                          <Package className="w-5 h-5" />
+                          List an Item
+                        </span>
+                      </span>
+                    </Link>
+                  )}
+                </div>
+              </motion.div>
+            </div>
           </motion.div>
+        </section>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-5xl md:text-7xl font-display font-bold mb-6"
-          >
-            Borrow Anything from{" "}
-            <span className="gradient-text">Your Neighbors</span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-lg md:text-xl text-text-secondary max-w-2xl mx-auto mb-8"
-          >
-            Why buy when you can borrow? Discover items available for rent in your neighborhood.
-            Save money, reduce waste, and connect with your community.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
-          >
-            <Link href="/browse" className="btn-primary flex items-center justify-center gap-2">
-              <Search className="w-5 h-5" />
-              Browse Items
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            {!user && (
-              <Link href="/auth/signup" className="btn-secondary flex items-center justify-center gap-2">
-                Create Account
-              </Link>
-            )}
-            {user && (
-              <Link href="/list-item" className="btn-secondary flex items-center justify-center gap-2">
-                <Package className="w-5 h-5" />
-                List an Item
-              </Link>
-            )}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-24 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">How Rentzy Works</h2>
-            <p className="text-text-secondary max-w-2xl mx-auto">
+        {/* Features */}
+        <section className="py-24">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 font-display text-3xl font-bold md:text-4xl">How Rentzy Works</h2>
+            <p className="mx-auto max-w-2xl text-text-secondary">
               A simple, secure way to borrow and lend items in your community
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, index) => (
-              <motion.div
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature) => (
+              <div
                 key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="card p-6 text-center group hover:border-accent-primary/30"
+                className="card card-scale-hover group p-6 text-center hover:border-border-subtle"
               >
-                <div className={`w-14 h-14 mx-auto mb-4 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center`}>
-                  <feature.icon className="w-7 h-7 text-white" />
+                <div className="card-content">
+                  <div className="card-image mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-surface-elevated">
+                    <feature.icon className="h-6 w-6 text-accent-primary" />
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
+                  <p className="text-sm text-text-secondary">{feature.description}</p>
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-text-secondary text-sm">{feature.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Categories Section */}
-      <section className="py-16 px-4 bg-surface/50">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl md:text-3xl font-display font-bold">Browse Categories</h2>
-            <Link href="/browse" className="text-accent-primary hover:text-accent-secondary transition-colors flex items-center gap-1">
-              View All <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {categories.map((category, index) => (
-              <motion.div
-                key={category.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-              >
-                <Link
-                  href={`/browse?category=${category.id}`}
-                  className="card-hover p-6 text-center block"
-                >
-                  <span className="text-4xl mb-3 block">{category.icon}</span>
-                  <span className="font-medium">{category.name}</span>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-24 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="card p-12 relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-accent-primary/10 to-accent-secondary/10" />
-            <div className="relative z-10">
-              <Star className="w-12 h-12 text-accent-primary mx-auto mb-6" />
-              <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
-                Ready to Start Sharing?
-              </h2>
-              <p className="text-text-secondary mb-8 max-w-lg mx-auto">
-                Join thousands of community members who are saving money and building connections.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/browse" className="btn-primary">
-                  Start Browsing
-                </Link>
-                {!user && (
-                  <Link href="/auth/signup" className="btn-secondary">
-                    Create Free Account
-                  </Link>
-                )}
               </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+
+        <RecentlyVisited />
+
+        <CategoryBento />
 
         {/* Footer */}
-        <footer className="border-t border-border py-12 px-4">
-          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        <footer className="-mx-4 border-t border-border bg-background px-4 py-12 lg:-mx-8 lg:px-8">
+          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 md:flex-row">
             <div className="flex items-center gap-2">
-              <Package className="w-6 h-6 text-accent-primary" />
-              <span className="font-display font-bold text-xl">Rentzy</span>
+              <Package className="h-6 w-6 text-accent-primary" />
+              <span className="font-display text-xl font-bold">Rentzy</span>
             </div>
-            <p className="text-text-secondary text-sm">
+            <p className="text-sm text-text-secondary">
               © 2026 Rentzy. Connecting communities through sharing.
             </p>
           </div>

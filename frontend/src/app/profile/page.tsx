@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -14,19 +14,20 @@ import {
   Edit2,
   Settings,
   Camera,
+  Loader2,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button, Card, Avatar, Badge, Rating, Input, Textarea, Modal } from "@/components/ui";
 import { ItemGrid } from "@/components/items/ItemGrid";
 import { useAuth } from "@/contexts/AuthContext";
 import { Item, Profile, Review } from "@/types";
-import { usersAPI, reviewsAPI } from "@/lib/api";
+import { usersAPI, reviewsAPI, uploadAPI } from "@/lib/api";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, profile, updateProfile, refreshProfile } = useAuth();
+  const { user, profile, loading: authLoading, updateProfile, refreshProfile } = useAuth();
 
   const [items, setItems] = useState<Item[]>([]);
   const [reviews, setReviews] = useState<(Review & { reviewer: Profile; item: Item })[]>([]);
@@ -39,12 +40,15 @@ export default function ProfilePage() {
     phone: "",
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       router.push("/auth/login");
       return;
     }
+    if (!user) return;
 
     async function fetchData() {
       try {
@@ -81,19 +85,57 @@ export default function ProfilePage() {
     e.preventDefault();
     setSaving(true);
 
-    const { error } = await updateProfile(editForm);
+    try {
+      const { error } = await updateProfile(editForm);
 
-    if (error) {
-      toast.error("Failed to update profile");
-    } else {
-      toast.success("Profile updated");
-      setShowEditModal(false);
+      if (error) {
+        toast.error(error.message || "Failed to update profile");
+      } else {
+        toast.success("Profile updated");
+        setShowEditModal(false);
+      }
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
-  if (!user || !profile) {
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Image must be under 25MB");
+      return;
+    }
+
+    setUploadingAvatar(true);
+
+    try {
+      const { data } = await uploadAPI.uploadAvatar(file);
+      const { error } = await updateProfile({ avatar_url: data.url });
+
+      if (error) {
+        toast.error(error.message || "Failed to update profile photo");
+      } else {
+        toast.success("Profile photo updated");
+      }
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        "Failed to upload profile photo";
+      toast.error(message);
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
+  if (authLoading || !user || !profile) {
     return (
       <MainLayout>
         <div className="max-w-4xl mx-auto px-4 py-16 text-center">
@@ -111,9 +153,30 @@ export default function ProfilePage() {
           <div className="flex flex-col md:flex-row gap-6">
             {/* Avatar */}
             <div className="relative">
-              <Avatar src={profile.avatar_url} size="xl" showGlow />
-              <button className="absolute bottom-0 right-0 p-2 rounded-full bg-accent-primary text-white hover:bg-accent-secondary transition-colors">
-                <Camera className="w-4 h-4" />
+              <Avatar
+                src={profile.avatar_url}
+                alt={profile.full_name || "User"}
+                size="xl"
+              />
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={handleAvatarSelect}
+              />
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute bottom-0 right-0 rounded-full bg-accent-primary p-2 text-white transition-colors hover:bg-accent-secondary disabled:cursor-not-allowed disabled:opacity-70"
+                aria-label="Change profile photo"
+              >
+                {uploadingAvatar ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
               </button>
             </div>
 

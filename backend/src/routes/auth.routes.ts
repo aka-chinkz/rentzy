@@ -1,13 +1,28 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import pool from "../config/database";
 import { hashPassword, verifyPassword, generateToken, generateRefreshToken, verifyToken } from "../utils/auth";
+import { generatePasswordResetToken, hashResetToken } from "../utils/passwordReset";
+import { sendPasswordResetEmail } from "../utils/email";
 import { validateBody } from "../middleware/validate";
 import { authMiddleware, AuthRequest } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { v4 as uuidv4 } from "uuid";
 
 const router = Router();
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many reset requests. Please try again later." },
+});
+
+const PASSWORD_RESET_RESPONSE = {
+  message: "If an account exists for that email, we've sent password reset instructions.",
+};
 
 // Validation schemas
 const signUpSchema = z.object({
@@ -19,6 +34,15 @@ const signUpSchema = z.object({
 const signInSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(6),
 });
 
 // Sign up
@@ -173,6 +197,99 @@ router.post("/refresh", async (req, res, next) => {
     });
   } catch (error) {
     next(new AppError("Invalid refresh token", 401));
+  }
+});
+
+// Request password reset — always returns the same message (prevents email enumeration)
+router.post(
+  "/forgot-password",
+  forgotPasswordLimiter,
+  validateBody(forgotPasswordSchema),
+  async (req, res, next) => {
+    try {
+      const { email } = req.body;
+
+      const userResult = await pool.query(
+        "SELECT id, email FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))",
+        [email]
+      );
+
+      if (userResult.rows.length > 0) {
+        const user = userResult.rows[0];
+        const { token, tokenHash, expiresAt } = generatePasswordResetToken();
+
+        await pool.query(
+          "UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL",
+          [user.id]
+        );
+
+        await pool.query(
+          `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+           VALUES ($1, $2, $3)`,
+          [user.id, tokenHash, expiresAt]
+        );
+
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+        const resetUrl = `${frontendUrl}/auth/reset-password?token=${token}`;
+
+        let devResetUrl: string | undefined;
+
+        try {
+          const { delivered } = await sendPasswordResetEmail(user.email, resetUrl);
+          if (!delivered && process.env.NODE_ENV !== "production") {
+            devResetUrl = resetUrl;
+          }
+        } catch (emailError) {
+          await pool.query("DELETE FROM password_reset_tokens WHERE token_hash = $1", [tokenHash]);
+          console.error("Failed to send password reset email:", emailError);
+        }
+
+        res.json({
+          ...PASSWORD_RESET_RESPONSE,
+          ...(devResetUrl ? { dev_reset_url: devResetUrl } : {}),
+        });
+        return;
+      }
+
+      res.json(PASSWORD_RESET_RESPONSE);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Reset password with one-time token
+router.post("/reset-password", validateBody(resetPasswordSchema), async (req, res, next) => {
+  try {
+    const { token, password } = req.body;
+    const tokenHash = hashResetToken(token);
+
+    const tokenResult = await pool.query(
+      `SELECT id, user_id FROM password_reset_tokens
+       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()`,
+      [tokenHash]
+    );
+
+    if (tokenResult.rows.length === 0) {
+      throw new AppError("Invalid or expired reset link. Please request a new one.", 400);
+    }
+
+    const resetRecord = tokenResult.rows[0];
+    const hashedPassword = await hashPassword(password);
+
+    await pool.query(
+      "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2",
+      [hashedPassword, resetRecord.user_id]
+    );
+
+    await pool.query(
+      "UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL",
+      [resetRecord.user_id]
+    );
+
+    res.json({ message: "Password updated successfully. You can now sign in." });
+  } catch (error) {
+    next(error);
   }
 });
 

@@ -7,6 +7,7 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+const REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "90d";
 
 export interface JWTPayload {
   userId: string;
@@ -27,7 +28,7 @@ export function generateToken(payload: JWTPayload): string {
 }
 
 export function generateRefreshToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_EXPIRES_IN });
 }
 
 export function verifyToken(token: string): JWTPayload {

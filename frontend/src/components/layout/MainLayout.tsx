@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   X,
+  ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -49,55 +50,71 @@ export function MainLayout({ children }: MainLayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-dark-primary">
-      {/* Top Navbar - Desktop */}
-      <header className="fixed left-0 right-0 top-0 z-50 hidden border-b border-dark-border bg-dark-secondary/95 backdrop-blur-lg lg:block">
-        <div className="flex h-14 items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-accent-primary to-accent-secondary">
-              <span className="text-lg font-bold text-white">R</span>
+    <div className="min-h-screen bg-background">
+      {/* Top Navbar - Desktop (sticky, always visible on scroll) */}
+      <header className="fixed left-0 right-0 top-0 z-50 hidden lg:block bg-background/95 backdrop-blur-md border-b border-border">
+        <div className="flex h-16 items-center justify-between px-8">
+          <Link href="/" className="flex items-center gap-2.5 shrink-0">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-primary">
+              <span className="text-sm font-semibold text-white">R</span>
             </div>
-            <span className="text-xl font-bold text-white">Rentzy</span>
+            <span className="text-lg font-semibold tracking-tight text-text-primary">Rentzy</span>
           </Link>
-          <nav className="flex items-center gap-1">
+          <nav className="flex flex-1 items-center justify-center gap-8">
             {navbarItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+                className={`group relative cursor-pointer overflow-hidden rounded-lg py-2 px-4 text-sm font-medium transition-all duration-300 ease-in-out ${
                   isActive(item.href)
-                    ? "bg-accent-primary/10 text-accent-primary"
-                    : "text-dark-muted hover:bg-dark-tertiary hover:text-white"
+                    ? "text-text-primary font-semibold"
+                    : "text-text-muted hover:text-text-primary"
                 }`}
               >
-                <item.icon className="h-5 w-5" />
-                {item.label}
+                <span className="relative z-20">{item.label}</span>
+                <span
+                  className="absolute left-[-75%] top-0 h-full w-[50%] rotate-12 bg-white/20 blur-lg transition-all duration-1000 ease-in-out group-hover:left-[125%] z-10"
+                  aria-hidden
+                />
               </Link>
             ))}
-            {user && (
+          </nav>
+          <div className="flex shrink-0 items-center gap-6">
+            {user ? (
               <button
                 onClick={() => signOut()}
-                className="ml-2 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-red-400 transition-all hover:bg-red-500/10"
+                className="group relative cursor-pointer overflow-hidden rounded-lg py-2 px-4 text-sm font-medium text-text-muted transition-all duration-300 ease-in-out hover:text-text-primary"
               >
-                <LogOut className="h-5 w-5" />
-                Sign Out
+                <span className="relative z-20">Sign Out</span>
+                <span
+                  className="absolute left-[-75%] top-0 h-full w-[50%] rotate-12 bg-white/20 blur-lg transition-all duration-1000 ease-in-out group-hover:left-[125%] z-10"
+                  aria-hidden
+                />
               </button>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="text-sm font-medium text-text-muted transition-colors hover:text-text-primary"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/auth/signup"
+                  className="inline-flex items-center gap-2 rounded-full bg-accent-primary px-5 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                >
+                  Get Started
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </>
             )}
-            {!user && (
-              <Link
-                href="/auth/login"
-                className="ml-2 rounded-xl bg-accent-primary px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-accent-primary/90"
-              >
-                Sign In
-              </Link>
-            )}
-          </nav>
+          </div>
         </div>
       </header>
 
       {/* Desktop Sidebar - hidden on home page */}
       {!isHomePage && (
-      <aside className="fixed left-0 top-14 z-40 hidden h-[calc(100vh-3.5rem)] w-64 border-r border-dark-border bg-dark-secondary lg:block">
+      <aside className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-4rem)] w-64 border-r border-border bg-surface lg:block">
         <div className="flex h-full flex-col">
           {/* Navigation */}
           <nav className="flex-1 space-y-1 p-4">
@@ -105,10 +122,10 @@ export function MainLayout({ children }: MainLayoutProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
                   isActive(item.href)
-                    ? "bg-accent-primary/10 text-accent-primary"
-                    : "text-dark-muted hover:bg-dark-tertiary hover:text-white"
+                    ? "bg-accent-primary/15 text-accent-primary"
+                    : "text-text-muted hover:bg-surface-elevated hover:text-text-primary"
                 }`}
               >
                 <item.icon className="h-5 w-5" />
@@ -121,32 +138,32 @@ export function MainLayout({ children }: MainLayoutProps) {
       )}
 
       {/* Mobile Header / Navbar */}
-      <header className="fixed left-0 right-0 top-0 z-50 border-b border-dark-border bg-dark-secondary/95 backdrop-blur-lg lg:hidden">
+      <header className="fixed left-0 right-0 top-0 z-50 border-b border-border bg-surface/90 backdrop-blur-xl lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent-primary to-accent-secondary">
-              <span className="text-lg font-bold text-white">R</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-primary">
+              <span className="text-sm font-semibold text-white">R</span>
             </div>
-            <span className="text-lg font-bold text-white">Rentzy</span>
+            <span className="text-base font-semibold tracking-tight text-text-primary">Rentzy</span>
           </Link>
 
           <nav className="flex items-center gap-1">
             <Link
               href="/messages"
-              className={`rounded-lg p-2.5 transition-all ${isActive("/messages") ? "text-accent-primary" : "text-dark-muted hover:bg-dark-tertiary hover:text-white"}`}
+              className={`rounded-lg p-2.5 transition-all ${isActive("/messages") ? "text-accent-primary" : "text-text-muted hover:bg-surface-elevated hover:text-text-primary"}`}
             >
               <MessageCircle className="h-5 w-5" />
             </Link>
             <Link
               href="/saved"
-              className={`rounded-lg p-2.5 transition-all ${isActive("/saved") ? "text-accent-primary" : "text-dark-muted hover:bg-dark-tertiary hover:text-white"}`}
+              className={`rounded-lg p-2.5 transition-all ${isActive("/saved") ? "text-accent-primary" : "text-text-muted hover:bg-surface-elevated hover:text-text-primary"}`}
             >
               <Heart className="h-5 w-5" />
             </Link>
             {user && (
               <Link
                 href="/notifications"
-                className={`rounded-lg p-2.5 transition-all ${isActive("/notifications") ? "text-accent-primary" : "text-dark-muted hover:bg-dark-tertiary hover:text-white"}`}
+                className={`rounded-lg p-2.5 transition-all ${isActive("/notifications") ? "text-accent-primary" : "text-text-muted hover:bg-surface-elevated hover:text-text-primary"}`}
               >
                 <Bell className="h-5 w-5" />
               </Link>
@@ -154,7 +171,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             {user ? (
               <Link
                 href="/profile"
-                className={`rounded-lg p-2.5 transition-all ${isActive("/profile") ? "text-accent-primary" : "text-dark-muted hover:bg-dark-tertiary hover:text-white"}`}
+                className={`rounded-lg p-2.5 transition-all ${isActive("/profile") ? "text-accent-primary" : "text-text-muted hover:bg-surface-elevated hover:text-text-primary"}`}
               >
                 <User className="h-5 w-5" />
               </Link>
@@ -168,7 +185,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             )}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="rounded-lg p-2.5 text-dark-muted transition-all hover:bg-dark-tertiary hover:text-white"
+              className="rounded-lg p-2.5 text-text-muted transition-all hover:bg-surface-elevated hover:text-text-primary"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -177,17 +194,17 @@ export function MainLayout({ children }: MainLayoutProps) {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="border-t border-dark-border bg-dark-secondary p-4">
+          <div className="border-t border-border bg-surface p-4">
             <nav className="space-y-1">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                  className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
                     isActive(item.href)
-                      ? "bg-accent-primary/10 text-accent-primary"
-                      : "text-dark-muted hover:bg-dark-tertiary hover:text-white"
+                      ? "bg-accent-primary/15 text-accent-primary"
+                      : "text-text-muted hover:bg-surface-elevated hover:text-text-primary"
                   }`}
                 >
                   <item.icon className="h-5 w-5" />
@@ -199,7 +216,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                   <Link
                     href="/profile"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-dark-muted transition-all hover:bg-dark-tertiary hover:text-white"
+                    className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-text-muted transition-all hover:bg-surface-elevated hover:text-text-primary"
                   >
                     <User className="h-5 w-5" />
                     Profile
@@ -209,7 +226,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                       signOut();
                       setMobileMenuOpen(false);
                     }}
-                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-400 transition-all hover:bg-red-500/10"
+                    className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-error transition-all hover:bg-error/10"
                   >
                     <LogOut className="h-5 w-5" />
                     Sign Out
@@ -217,9 +234,9 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </>
               ) : (
                 <Link
-                  href="/auth"
+                  href="/auth/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-accent-primary px-4 py-3 text-sm font-medium text-white transition-all hover:bg-accent-primary/90"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-accent-primary px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-accent-primary/90"
                 >
                   Sign In
                 </Link>
@@ -230,7 +247,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       </header>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-dark-border bg-dark-secondary/95 backdrop-blur-lg lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-surface/90 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-around py-2">
           {navItems.slice(0, 5).map((item) => (
             <Link
@@ -239,7 +256,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               className={`flex flex-col items-center gap-1 rounded-lg px-3 py-2 transition-all ${
                 isActive(item.href)
                   ? "text-accent-primary"
-                  : "text-dark-muted hover:text-white"
+                  : "text-text-muted hover:text-text-primary"
               }`}
             >
               <item.icon className="h-5 w-5" />
@@ -250,7 +267,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       </nav>
 
       {/* Main Content */}
-      <main className={`min-h-screen pb-20 pt-14 lg:pt-14 ${!isHomePage ? "lg:ml-64" : ""}`}>
+      <main className={`min-h-screen pb-20 pt-14 lg:pt-16 ${!isHomePage ? "lg:ml-64" : ""}`}>
         <div className="mx-auto max-w-7xl p-4 lg:p-8">{children}</div>
       </main>
     </div>

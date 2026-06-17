@@ -5,46 +5,6 @@ import { AppError } from "../middleware/errorHandler";
 
 const router = Router();
 
-// Get user profile by ID
-router.get("/:id", async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const profileResult = await pool.query(
-      "SELECT * FROM profiles WHERE id = $1",
-      [id]
-    );
-
-    if (profileResult.rows.length === 0) {
-      throw new AppError("User not found", 404);
-    }
-
-    // Get user's items
-    const itemsResult = await pool.query(
-      "SELECT * FROM items WHERE owner_id = $1 AND is_available = true ORDER BY created_at DESC",
-      [id]
-    );
-
-    // Get reviews about user
-    const reviewsResult = await pool.query(
-      `SELECT r.*, p.full_name as reviewer_name, p.avatar_url as reviewer_avatar
-       FROM reviews r
-       LEFT JOIN profiles p ON r.reviewer_id = p.id
-       WHERE r.reviewee_id = $1
-       ORDER BY r.created_at DESC`,
-      [id]
-    );
-
-    res.json({
-      profile: profileResult.rows[0],
-      items: itemsResult.rows,
-      reviews: reviewsResult.rows,
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
 // Update current user's profile
 router.patch("/me", authMiddleware, async (req: AuthRequest, res, next) => {
   try {
@@ -154,6 +114,46 @@ router.post("/me/saved/:itemId", authMiddleware, async (req: AuthRequest, res, n
       );
       res.json({ saved: true, message: "Added to saved items" });
     }
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get user profile by ID
+router.get("/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const profileResult = await pool.query(
+      "SELECT * FROM profiles WHERE id = $1",
+      [id]
+    );
+
+    if (profileResult.rows.length === 0) {
+      throw new AppError("User not found", 404);
+    }
+
+    // Get user's items
+    const itemsResult = await pool.query(
+      "SELECT * FROM items WHERE owner_id = $1 AND is_available = true ORDER BY created_at DESC",
+      [id]
+    );
+
+    // Get reviews about user
+    const reviewsResult = await pool.query(
+      `SELECT r.*, p.full_name as reviewer_name, p.avatar_url as reviewer_avatar
+       FROM reviews r
+       LEFT JOIN profiles p ON r.reviewer_id = p.id
+       WHERE r.reviewee_id = $1
+       ORDER BY r.created_at DESC`,
+      [id]
+    );
+
+    res.json({
+      profile: profileResult.rows[0],
+      items: itemsResult.rows,
+      reviews: reviewsResult.rows,
+    });
   } catch (error) {
     next(error);
   }

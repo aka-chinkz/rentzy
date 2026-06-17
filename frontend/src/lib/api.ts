@@ -35,7 +35,7 @@ api.interceptors.response.use(
         } catch {
           localStorage.removeItem("rentzy_token");
           localStorage.removeItem("rentzy_refresh_token");
-          window.location.href = "/auth/login";
+          // Do not redirect here; let AuthContext set user to null so sign-in only shows when actually logged out
         }
       }
     }
@@ -49,6 +49,9 @@ export const authAPI = {
   signOut: () => api.post("/auth/signout"),
   getMe: () => api.get("/auth/me"),
   refresh: (refreshToken: string) => api.post("/auth/refresh", { refresh_token: refreshToken }),
+  forgotPassword: (email: string) => api.post("/auth/forgot-password", { email }),
+  resetPassword: (token: string, password: string) =>
+    api.post("/auth/reset-password", { token, password }),
 };
 
 export const usersAPI = {

@@ -163,6 +163,21 @@ router.patch("/:id/status", authMiddleware, async (req: AuthRequest, res, next) 
       [status, response, id]
     );
 
+    // When owner approves (or marks as rented), make item unavailable until return
+    if (status === "approved" || status === "rented") {
+      await pool.query(
+        `UPDATE items SET is_available = false, updated_at = NOW() WHERE id = $1`,
+        [rental.item_id]
+      );
+    }
+    // When rental is returned, make item available again
+    if (status === "returned") {
+      await pool.query(
+        `UPDATE items SET is_available = true, updated_at = NOW() WHERE id = $1`,
+        [rental.item_id]
+      );
+    }
+
     // Create notification
     const recipientId = isOwner ? rental.renter_id : rental.owner_id;
     const notificationType = status === "approved" ? "request_approved" : status === "rejected" ? "request_rejected" : "item_returned";

@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Check,
   Info,
+  Trash2,
 } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button, Card, Avatar, Badge, Rating, Modal, Textarea } from "@/components/ui";
@@ -26,6 +27,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "@/contexts/LocationContext";
 import { Item, Profile, Review } from "@/types";
 import { itemsAPI, rentalsAPI, usersAPI, messagesAPI } from "@/lib/api";
+import { addRecentlyVisited } from "@/lib/recentlyVisited";
 import toast from "react-hot-toast";
 import { format, differenceInDays, addDays } from "date-fns";
 
@@ -40,7 +42,7 @@ export default function ItemDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, profile } = useAuth();
-  const { calculateDistance } = useLocation();
+  const { calculateDistance, requestLocation } = useLocation();
 
   const [item, setItem] = useState<Item & { owner?: Profile } | null>(null);
   const [reviews, setReviews] = useState<(Review & { reviewer: Profile })[]>([]);
@@ -48,6 +50,8 @@ export default function ItemDetailPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
   const [showRentModal, setShowRentModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Rent request form
   const [rentForm, setRentForm] = useState({
@@ -72,9 +76,19 @@ export default function ItemDetailPage() {
         setItem(data.item);
         setReviews(data.reviews || []);
         setIsSaved(data.isSaved || false);
+        addRecentlyVisited(data.item.id);
 
-        // Increment views
-        await itemsAPI.incrementViews(params.id as string);
+        // Increment views and update displayed count (per-account unique when authenticated)
+        try {
+          const { data: viewData } = await itemsAPI.incrementViews(params.id as string);
+          if (!viewData?.alreadyViewed) {
+            setItem((prev) =>
+              prev ? { ...prev, views: (prev.views ?? 0) + 1 } : null
+            );
+          }
+        } catch {
+          // Non-blocking; still show item even if increment fails
+        }
       } catch (error) {
         toast.error("Item not found");
         router.push("/browse");
@@ -170,6 +184,23 @@ export default function ItemDetailPage() {
     setSubmitting(false);
   };
 
+  const handleDeleteItem = async () => {
+    if (!item || user?.id !== item.owner_id) return;
+    setDeleting(true);
+    try {
+      await itemsAPI.deleteItem(item.id);
+      toast.success("Listing deleted");
+      router.push("/browse");
+    } catch (error: unknown) {
+      const msg =
+        (error as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        "Failed to delete listing";
+      toast.error(msg);
+    }
+    setDeleting(false);
+    setShowDeleteModal(false);
+  };
+
   const handleMessageOwner = async () => {
     if (!user) {
       toast.error("Please sign in to message the owner");
@@ -224,15 +255,6 @@ export default function ItemDetailPage() {
   return (
     <MainLayout>
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Back button */}
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-text-secondary hover:text-text-primary mb-6 transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" />
-          Back to browse
-        </button>
-
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left column - Images and details */}
           <div className="lg:col-span-2 space-y-6">
@@ -318,11 +340,20 @@ export default function ItemDetailPage() {
                   </h1>
                   <div className="flex items-center gap-3 flex-wrap">
                     <Badge variant={condition.color as any}>{condition.label}</Badge>
-                    {distance !== null && (
+                    {distance !== null ? (
                       <div className="flex items-center gap-1 text-text-secondary text-sm">
                         <MapPin className="w-4 h-4" />
                         <span>{distance.toFixed(1)} km away</span>
                       </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={requestLocation}
+                        className="flex items-center gap-1 text-text-muted hover:text-accent-primary text-sm transition-colors"
+                      >
+                        <MapPin className="w-4 h-4" />
+                        <span>Enable location to see distance</span>
+                      </button>
                     )}
                     <div className="flex items-center gap-1 text-text-muted text-sm">
                       <Clock className="w-4 h-4" />
@@ -416,21 +447,24 @@ export default function ItemDetailPage() {
                 <h3 className="text-lg font-semibold text-text-primary">
                   Reviews ({reviews.length})
                 </h3>
-                {item.owner && item.owner.rating > 0 && (
-                  <Rating value={item.owner.rating} showValue totalReviews={item.owner.total_reviews} />
+                {item.owner && item.owner.rating != null && Number(item.owner.rating) > 0 && (
+                  <Rating value={Number(item.owner.rating)} showValue totalReviews={item.owner.total_reviews} />
                 )}
               </div>
 
               {reviews.length > 0 ? (
                 <div className="space-y-4">
-                  {reviews.map((review) => (
+                  {reviews.map((review) => {
+                    const reviewerName = review.reviewer_name ?? (review as { reviewer?: { full_name?: string } }).reviewer?.full_name ?? "Anonymous";
+                    const reviewerAvatar = review.reviewer_avatar ?? (review as { reviewer?: { avatar_url?: string } }).reviewer?.avatar_url;
+                    return (
                     <div key={review.id} className="p-4 rounded-xl bg-background-secondary">
                       <div className="flex items-start gap-3">
-                        <Avatar src={review.reviewer.avatar_url} size="sm" />
+                        <Avatar src={reviewerAvatar} size="sm" />
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-1">
                             <p className="font-medium text-text-primary">
-                              {review.reviewer.full_name}
+                              {reviewerName}
                             </p>
                             <p className="text-text-muted text-sm">
                               {format(new Date(review.created_at), "MMM d, yyyy")}
@@ -443,7 +477,7 @@ export default function ItemDetailPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  ); })}
                 </div>
               ) : (
                 <p className="text-text-muted text-center py-8">No reviews yet</p>
@@ -459,13 +493,13 @@ export default function ItemDetailPage() {
                 <div>
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-display font-bold text-text-primary">
-                      ${item.rent_price_per_day}
+                      ₹{item.rent_price_per_day}
                     </span>
                     <span className="text-text-secondary">/day</span>
                   </div>
                   <div className="flex items-center gap-2 mt-2 text-text-secondary">
                     <Shield className="w-4 h-4 text-warning" />
-                    <span className="text-sm">${item.security_deposit} security deposit</span>
+                    <span className="text-sm">₹{item.security_deposit} security deposit</span>
                   </div>
                 </div>
 
@@ -480,11 +514,11 @@ export default function ItemDetailPage() {
                         {item.owner.full_name || "User"}
                       </p>
                       <div className="flex items-center gap-2">
-                        {item.owner.rating > 0 && (
+                        {item.owner.rating != null && Number(item.owner.rating) > 0 && (
                           <div className="flex items-center gap-1">
                             <Star className="w-4 h-4 text-warning fill-current" />
                             <span className="text-sm text-text-secondary">
-                              {item.owner.rating.toFixed(1)}
+                              {Number(item.owner.rating).toFixed(1)}
                             </span>
                           </div>
                         )}
@@ -541,11 +575,21 @@ export default function ItemDetailPage() {
                       <Info className="w-5 h-5" />
                       <span className="font-medium">This is your listing</span>
                     </div>
-                    <Link href={`/my-items/${item.id}/edit`}>
-                      <Button fullWidth variant="secondary" className="mt-3">
-                        Edit Listing
+                    <div className="flex gap-3 mt-3">
+                      <Link href={`/my-items/${item.id}/edit`} className="flex-1">
+                        <Button fullWidth variant="secondary">
+                          Edit Listing
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="danger"
+                        onClick={() => setShowDeleteModal(true)}
+                        className="flex-1"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2 inline-block" />
+                        Delete
                       </Button>
-                    </Link>
+                    </div>
                   </div>
                 )}
 
@@ -583,7 +627,7 @@ export default function ItemDetailPage() {
             <div>
               <p className="font-medium text-text-primary">{item.title}</p>
               <p className="text-text-secondary">
-                ${item.rent_price_per_day}/day • ${item.security_deposit} deposit
+                ₹{item.rent_price_per_day}/day • ₹{item.security_deposit} deposit
               </p>
             </div>
           </div>
@@ -625,25 +669,25 @@ export default function ItemDetailPage() {
             <div className="p-4 rounded-xl bg-surface-elevated space-y-2">
               <div className="flex justify-between text-text-secondary">
                 <span>
-                  ${item.rent_price_per_day} x{" "}
+                  ₹{item.rent_price_per_day} x{" "}
                   {differenceInDays(new Date(rentForm.endDate), new Date(rentForm.startDate)) + 1}{" "}
                   days
                 </span>
                 <span>
-                  $
+                  ₹
                   {(differenceInDays(new Date(rentForm.endDate), new Date(rentForm.startDate)) + 1) *
                     Number(item.rent_price_per_day)}
                 </span>
               </div>
               <div className="flex justify-between text-text-secondary">
                 <span>Security deposit (refundable)</span>
-                <span>${item.security_deposit}</span>
+                <span>₹{item.security_deposit}</span>
               </div>
               <div className="divider my-2" />
               <div className="flex justify-between font-semibold text-text-primary">
                 <span>Total to pay at pickup</span>
                 <span>
-                  $
+                  ₹
                   {(differenceInDays(new Date(rentForm.endDate), new Date(rentForm.startDate)) + 1) *
                     Number(item.rent_price_per_day) +
                     Number(item.security_deposit)}
@@ -676,6 +720,32 @@ export default function ItemDetailPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => !deleting && setShowDeleteModal(false)}
+        title="Delete Listing"
+      >
+        <div className="space-y-6">
+          <p className="text-text-secondary">
+            Are you sure you want to delete &quot;{item?.title}&quot;? This action cannot be undone.
+          </p>
+          <div className="flex gap-3">
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => setShowDeleteModal(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" fullWidth loading={deleting} onClick={handleDeleteItem}>
+              Delete Listing
+            </Button>
+          </div>
+        </div>
       </Modal>
     </MainLayout>
   );

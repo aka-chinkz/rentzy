@@ -175,7 +175,7 @@ export default function UserProfilePage() {
               <div className="flex items-center justify-center gap-1">
                 <Star className="w-5 h-5 text-warning fill-current" />
                 <span className="text-2xl font-bold text-text-primary">
-                  {profile.rating > 0 ? profile.rating.toFixed(1) : "-"}
+                  {Number(profile?.rating) > 0 ? Number(profile.rating).toFixed(1) : "-"}
                 </span>
               </div>
               <p className="text-sm text-text-muted">Rating</p>
@@ -229,21 +229,35 @@ export default function UserProfilePage() {
         {activeTab === "reviews" && (
           <div className="space-y-4">
             {reviews.length > 0 ? (
-              reviews.map((review) => (
+              reviews.map((review) => {
+                const reviewerId = review.reviewer_id ?? (review as { reviewer?: { id: string } }).reviewer?.id;
+                const reviewerName = review.reviewer_name ?? (review as { reviewer?: { full_name?: string } }).reviewer?.full_name ?? "Anonymous";
+                const reviewerAvatar = review.reviewer_avatar ?? (review as { reviewer?: { avatar_url?: string } }).reviewer?.avatar_url;
+                return (
                 <Card key={review.id}>
                   <div className="flex items-start gap-4">
-                    <Link href={`/user/${review.reviewer.id}`}>
-                      <Avatar src={review.reviewer.avatar_url} size="md" />
-                    </Link>
+                    {reviewerId ? (
+                      <Link href={`/user/${reviewerId}`}>
+                        <Avatar src={reviewerAvatar} size="md" />
+                      </Link>
+                    ) : (
+                      <Avatar src={reviewerAvatar} size="md" />
+                    )}
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <div>
-                          <Link
-                            href={`/user/${review.reviewer.id}`}
-                            className="font-medium text-text-primary hover:text-accent-primary"
-                          >
-                            {review.reviewer.full_name}
-                          </Link>
+                          {reviewerId ? (
+                            <Link
+                              href={`/user/${reviewerId}`}
+                              className="font-medium text-text-primary hover:text-accent-primary"
+                            >
+                              {reviewerName}
+                            </Link>
+                          ) : (
+                            <span className="font-medium text-text-primary">
+                              {reviewerName}
+                            </span>
+                          )}
                           <p className="text-text-muted text-sm">
                             {format(new Date(review.created_at), "MMM d, yyyy")}
                           </p>
@@ -256,7 +270,7 @@ export default function UserProfilePage() {
                     </div>
                   </div>
                 </Card>
-              ))
+              ); })
             ) : (
               <Card className="text-center py-12">
                 <p className="text-text-secondary">No reviews yet</p>
